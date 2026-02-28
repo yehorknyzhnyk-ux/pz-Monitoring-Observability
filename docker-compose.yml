@@ -1,0 +1,39 @@
+services:
+  web3:
+    image: eclipse-mosquitto:latest
+    container_name: web3
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  postman:
+    build: .
+    container_name: postman
+    command: python logger.py
+    ports:
+      - "8083:5000"
+    depends_on:
+      - web3
+
+  web1:
+    build: .
+    environment:
+      - NODE_NAME=web1
+      - MQTT_BROKER=web3
+    ports:
+      - "8081:5000"
+
+  web2:
+    build: .
+    environment:
+      - NODE_NAME=web2
+      - MQTT_BROKER=web3
+    ports:
+      - "8082:5000"
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
