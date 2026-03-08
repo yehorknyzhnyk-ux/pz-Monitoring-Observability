@@ -1,0 +1,45 @@
+zabbix_export:
+  version: '7.0'
+  hosts:
+    - host: postman
+      name: postman
+      groups:
+        - name: 'Linux servers'
+      items:
+        # Збираємо весь JSON з твого /health
+        - name: 'Health Check Raw'
+          type: HTTP_AGENT
+          key: postman.health.raw
+          url: 'http://postman:5000/health'
+          delay: 30s
+          history: 1d
+          trends: '0'
+          value_type: TEXT
+
+        # Витягуємо статус MQTT (з твого коду: mqtt_connected)
+        - name: 'MQTT Connection Status'
+          type: DEPENDENT
+          key: postman.mqtt.status
+          master_item:
+            key: postman.health.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters: ['$.mqtt_connected']
+            - type: BOOL_TO_DECIMAL
+              parameters: ['']
+
+        # Рахуємо опубліковані повідомлення (messages_published)
+        - name: 'Messages Published Count'
+          type: DEPENDENT
+          key: postman.msgs.published
+          master_item:
+            key: postman.health.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters: ['$.messages_published']
+
+      triggers:
+        - name: 'Postman lost MQTT connection'
+          expression: 'last(/postman/postman.mqtt.status)=0'
+          priority: AVERAGE
+          manual_close: 'YES'
